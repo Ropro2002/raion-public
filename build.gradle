@@ -1,0 +1,213 @@
+buildscript {
+	ext.kotlin_version = '1.3.71'
+	repositories {
+		jcenter()
+		maven {
+			name = "forge"
+			url = "https://files.minecraftforge.net/maven"
+		}
+		maven {
+			name = 'SpongePowered'
+			url = 'http://repo.spongepowered.org/maven'
+		}
+	}
+	dependencies {
+		classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+		classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
+		classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+	}
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'kotlin'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+version = modVersion
+group = modGroup
+archivesBaseName = modBaseName
+
+configurations {
+	clientCompile
+}
+
+minecraft {
+	version = project.forgeVersion
+	runDir = "run"
+
+	mappings = project.mcpVersion
+	coreMod = 'me.robeart.raion.mixin.MixinLoader'
+	makeObfSourceJar = false
+}
+
+repositories {
+	maven {
+		name = 'spongepowered-repo'
+		url = 'http://repo.spongepowered.org/maven/'
+	}
+	maven {
+		name = 'swt-repo'
+		url = "http://maven-eclipse.github.io/maven"
+	}
+	maven {
+		name = "jitpack.io"
+		url = "https://jitpack.io"
+	}
+	mavenCentral()
+}
+
+dependencies {
+	compile("org.spongepowered:mixin:0.7.11-SNAPSHOT") {
+		exclude module: 'launchwrapper'
+		exclude module: 'guava'
+		exclude module: 'gson'
+		exclude module: 'commons-io'
+	}
+	compile "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+	//compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+	compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+	//compile "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
+	runtime files('libs/java-discord-rpc-2.0.1-all.jar')
+}
+
+def getGitHash = { ->
+	def stdout = new ByteArrayOutputStream()
+	exec {
+		commandLine 'git', 'rev-parse', '--short', 'HEAD'
+		standardOutput = stdout
+	}
+	return stdout.toString().trim()
+}
+
+processResources {
+	inputs.property 'version', project.version
+	inputs.property 'mcversion', project.minecraft.version
+
+	from(sourceSets.main.resources.srcDirs) {
+		include 'mcmod.info'
+
+		expand 'version': project.version, 'mcversion': project.minecraft.version
+	}
+
+	from(sourceSets.main.resources.srcDirs) {
+		exclude 'mcmod.info'
+	}
+
+	for (file in [new File("$buildDir/resources/main/raion/version.txt"), new File("$buildDir/resources/main/raion/loaderversion.txt")]) {
+		file.parentFile.mkdirs()
+		file.write(getGitHash())
+	}
+}
+
+mixin {
+	defaultObfuscationEnv searge
+	add sourceSets.main, 'mixins.raion.refmap.json'
+}
+
+reobf {
+	shadowJar {
+		mappingType = 'SEARGE'
+		classpath = sourceSets.main.compileClasspath
+	}
+}
+
+shadowJar {
+	dependencies {
+		include(dependency('org.spongepowered:mixin'))
+		include(dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7"))
+		//include(dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8"))
+		include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+		//include(dependency("org.jetbrains.kotlin:kotlin-stdlib-common"))
+	}
+	exclude 'dummyThing'
+	exclude 'LICENSE.txt'
+	classifier = 'release'
+}
+
+jar {
+	manifest {
+		attributes(
+				'MixinConfigs': 'mixins.raion.json',
+				'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+				'TweakOrder': 0,
+				'FMLCorePluginContainsFMLMod': 'true',
+				'FMLCorePlugin': 'me.robeart.raion.mixin.MixinLoader',
+				'ForceLoadAsMod': 'true',
+		)
+	}
+}
+
+task clientJar(type: Jar, dependsOn: jar) {
+	from(zipTree(shadowJar.archivePath)) {
+		include 'me/robeart/raion/client/**'
+		include 'me/robeart/raion/mixin/common/**'
+		include 'me/robeart/raion/*'
+		include 'mixins.raion.json'
+		include 'mixins.raion.refmap.json'
+		include 'raion/version.txt'
+		exclude 'raion/loaderversion.txt'
+		include "assets/**"
+		include "dev/binclub/**"
+		//include 'assets/minecraft/**'
+		include "shaders/**"
+		exclude "META-INF/fml_cache_class_versions.json"
+		exclude "META-INF/fml_cache_annotation.json"
+	}
+	baseName = ''
+	version = ''
+	classifier = 'client-unobf'
+}
+
+task loaderJar(type: Jar, dependsOn: shadowJar) {
+	from(zipTree(shadowJar.archivePath)) {
+
+		exclude 'me/robeart/raion/client/**'
+		exclude 'me/robeart/raion/mixin/common/**'
+		exclude 'me/robeart/raion/*'
+		exclude 'mixins.raion.json'
+		exclude 'mixins.raion.refmap.json'
+		exclude 'raion/version.txt'
+		include 'raion/loaderversion.txt'
+		exclude "dev/binclub/**"
+
+		include "team/**"
+		include "me/robeart/raion/mixin/MixinLoader.class"
+		include "me/cookiedragon234/**"
+		exclude 'assets/minecraft/**'
+		exclude 'shaders/**'
+		include "org/spongepowered/**"
+		include "kotlin/**"
+		include "win32-x86-64/**"
+		include "win32-x86/**"
+		include "linux-x86-64/**"
+		include "darwin/**"
+		include "club/**"
+		include "com/**"
+		include "META-INF/**"
+		exclude "META-INF/fml_cache_class_versions.json"
+		exclude "META-INF/fml_cache_annotation.json"
+		include "falcon/**"
+	}
+	manifest {
+		attributes(
+				'MixinConfigs': 'mixins.raion.json',
+				'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+				'TweakOrder': 0,
+				'FMLCorePluginContainsFMLMod': 'true',
+				'FMLCorePlugin': 'me.robeart.raion.mixin.MixinLoader',
+				'ForceLoadAsMod': 'true',
+		)
+	}
+	baseName = ''
+	version = ''
+	classifier = 'loader-unobf'
+}
+
+build.dependsOn(clientJar, loaderJar)
+
+compileKotlin {
+	kotlinOptions {
+		jvmTarget = "1.8"
+	}
+}

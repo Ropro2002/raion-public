@@ -1,0 +1,22 @@
+package me.robeart.raion.client.gui.cui.elements
+
+import com.mojang.realmsclient.gui.ChatFormatting
+import me.robeart.raion.client.gui.cui.element.CuiElement
+import me.robeart.raion.client.util.Utils
+import net.minecraft.util.math.Vec2f
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/**
+ * @author Robeart 22/07/2020
+ */
+class TimeElement: CuiElement() {
+    override fun render(mousePos: Vec2f) {
+        super.render(mousePos)
+
+        val formatter = DateTimeFormatter.ofPattern("HH:mm")
+        val time = LocalDateTime.now().format(formatter)
+        val text = "${ChatFormatting.GRAY}Time ${ChatFormatting.WHITE}$time"
+        drawText(text, Utils.getRgb(255, 255, 255, 255))
+    }
+}

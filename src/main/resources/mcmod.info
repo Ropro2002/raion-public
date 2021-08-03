@@ -1,0 +1,16 @@
+[
+  {
+	"modid": "raionloader",
+	"name": "Raion Loader",
+	"description": "A loader for the utility mod Raion",
+	"version": "${version}",
+	"mcversion": "${mcversion}",
+	"url": "",
+	"updateUrl": "",
+	"authorList": ["Robeart", "Cookiedragon234"],
+	"credits": "",
+	"logoFile": "",
+	"screenshots": [],
+	"dependencies": []
+  }
+]
